@@ -66,6 +66,32 @@ export async function uploadAssets(releaseId: number, assets: Artifact[]) {
       ref: context.sha,
     });
 
+    console.log("data", data);
+
+    // create branch
+    const { data: { ref } } = await github.rest.git.createRef({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      ref: 'refs/heads/chore/update-assets',
+      sha: context.sha,
+    });
+
+    console.log(`Created branch chore/update-assets`);
+
+    // create pull request
+    const { data: { number: prNumber } } = await github.rest.pulls.create({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      title: `chore(release): ${assetName}`,
+      head: 'chore/update-assets',
+      base: 'main',
+      body: `chore(release): ${assetName}`,
+      maintainer_can_modify: true,
+    });
+
+    console.log(`Created pull request #${prNumber} for ${assetName}`)
+
+    // update app.ts
     await github.rest.repos.createOrUpdateFileContents({
       owner: context.repo.owner,
       repo: context.repo.repo,
@@ -86,19 +112,6 @@ export async function uploadAssets(releaseId: number, assets: Artifact[]) {
       branch: 'chore/update-assets',
     });
 
-    console.log(`Updated ${assetName} in web/constants/app.ts`);
-
-    // create pull request
-    const { data: { number } } = await github.rest.pulls.create({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      title: `chore(release): ${assetName}`,
-      head: 'chore/update-assets',
-      base: 'main',
-      body: `chore(release): ${assetName}`,
-      maintainer_can_modify: true,
-    });
-
-    console.log(`Created pull request #${number} for ${assetName}`)
+    console.log(`Updated app.ts for ${assetName}`)
   }
 }
