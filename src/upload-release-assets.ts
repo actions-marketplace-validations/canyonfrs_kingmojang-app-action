@@ -5,6 +5,8 @@ import { getOctokit, context } from '@actions/github';
 import { getAssetName } from './utils';
 import type { Artifact } from './types';
 
+const BRANCH_NAME = 'chore/update-assets-DO-NOT-REMOVE';
+
 export async function uploadAssets(releaseId: number, assets: Artifact[]) {
   if (process.env.GITHUB_TOKEN === undefined) {
     throw new Error('GITHUB_TOKEN is required');
@@ -59,59 +61,83 @@ export async function uploadAssets(releaseId: number, assets: Artifact[]) {
 
     console.log(`Uploaded ${assetName} to ${browser_download_url}`);
 
-    const { data } = await github.rest.repos.getContent({
+    const { data: fileData } = await github.rest.repos.getContent({
       owner: context.repo.owner,
       repo: context.repo.repo,
       path: 'web/constants/app.ts',
       ref: context.sha,
     });
 
-    console.log("data", data);
+    if (!fileData) {
+      throw new Error('content is undefined');
+    }
 
-    // create branch
-    const { data: { ref } } = await github.rest.git.createRef({
+    let sha = "";
+
+    const { data: { ref, object } } = await github.rest.git.getRef({
       owner: context.repo.owner,
       repo: context.repo.repo,
-      ref: 'refs/heads/chore/update-assets',
-      sha: context.sha,
+      ref: `heads/${BRANCH_NAME}`,
     });
 
-    console.log(`Created branch chore/update-assets`);
+    sha = object.sha;
 
-    // create pull request
-    const { data: { number: prNumber } } = await github.rest.pulls.create({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      title: `chore(release): ${assetName}`,
-      head: 'chore/update-assets',
-      base: 'main',
-      body: `chore(release): ${assetName}`,
-      maintainer_can_modify: true,
-    });
+    if (ref) {
+      console.log(`Found branch ${BRANCH_NAME}`);
+    } else {
+      const { data: { object } } = await github.rest.git.createRef({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        ref: `refs/heads/${BRANCH_NAME}`,
+        sha: context.sha,
+      });
 
-    console.log(`Created pull request #${prNumber} for ${assetName}`)
+      sha = object.sha;
 
-    // update app.ts
-    await github.rest.repos.createOrUpdateFileContents({
+      console.log(`Created branch chore/update-assets`);
+    }
+
+    // TODO: FIX THIS
+    const newFileData = fileData.toString().replace(
+      /export const ASSETS_URL = '.*';/,
+      `export const ASSETS_URL = '${browser_download_url}';`
+    );
+
+    const { data: { content } } =  await github.rest.repos.createOrUpdateFileContents({
       owner: context.repo.owner,
       repo: context.repo.repo,
       path: 'web/constants/app.ts',
-      message: `chore(release): ${assetName}`,
-      content: Buffer.from(
-        data.toString().replace(new RegExp(`"${assetName}": ".*",`), `"${assetName}": "${browser_download_url}",`)
-      ).toString('base64'),
-      sha: context.sha,
-      author: {
-        name: 'junghyeonsu',
-        email: 'jung660317@naver.com',
-      },
-      committer: {
-        name: 'junghyeonsu',
-        email: 'jung660317@naver.com',
-      },
-      branch: 'chore/update-assets',
+      message: `chore: update assets url`,
+      content: Buffer.from(newFileData).toString('base64'),
+      sha: sha,
+      branch: BRANCH_NAME,
     });
 
-    console.log(`Updated app.ts for ${assetName}`)
+    console.log(`Updated assets url in web/constants/app.ts`);
+
+    if (!content?.sha) {
+      throw new Error('sha is undefined');
+    }
+
+    await github.rest.git.updateRef({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      ref: `heads/${BRANCH_NAME}`,
+      sha: content?.sha,
+      force: true,
+    });
+
+    console.log(`Updated branch chore/update-assets`);
+
+    await github.rest.pulls.create({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      title: `chore: update assets url`,
+      head: BRANCH_NAME,
+      base: 'main',
+      body: `This PR updates the assets url in web/constants/app.ts to ${browser_download_url}`,
+    });
+
+    console.log(`Created PR chore/update-assets`);
   }
 }
