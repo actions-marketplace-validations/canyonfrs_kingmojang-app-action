@@ -46,7 +46,7 @@ export async function uploadAssets(releaseId: number, assets: Artifact[]) {
 
     console.log(`Uploading ${assetName}...`);
 
-    await github.rest.repos.uploadReleaseAsset({
+    const { data: { browser_download_url } } = await github.rest.repos.uploadReleaseAsset({
       headers,
       name: assetName,
       // https://github.com/tauri-apps/tauri-action/pull/45
@@ -56,5 +56,7 @@ export async function uploadAssets(releaseId: number, assets: Artifact[]) {
       repo: context.repo.repo,
       release_id: releaseId,
     });
+
+    console.log(`Uploaded ${assetName} to ${browser_download_url}`);
   }
 }

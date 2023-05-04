@@ -1,8 +1,8 @@
 {
-  "name": "tauri-action",
-  "version": "0.3.1",
-  "description": "Tauri GitHub Action",
-  "author": "Lucas Nogueira <lucas@tauri.studio>",
+  "name": "kingmojnag-app-action",
+  "version": "0.0.1",
+  "description": "Kingmojnag Action",
+  "author": "Jung Hyeonsu <jung660317@naver.com>",
   "license": "MIT",
   "main": "dist/index.js",
   "type": "module",
