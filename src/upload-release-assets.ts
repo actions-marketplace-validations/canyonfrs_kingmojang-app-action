@@ -5,8 +5,6 @@ import { getOctokit, context } from '@actions/github';
 import { getAssetName } from './utils';
 import type { Artifact } from './types';
 
-const BRANCH_NAME = 'chore/update-assets-DO-NOT-REMOVE';
-
 export async function uploadAssets(releaseId: number, assets: Artifact[]) {
   if (process.env.GITHUB_TOKEN === undefined) {
     throw new Error('GITHUB_TOKEN is required');
@@ -60,84 +58,5 @@ export async function uploadAssets(releaseId: number, assets: Artifact[]) {
     });
 
     console.log(`Uploaded ${assetName} to ${browser_download_url}`);
-
-    const { data: fileData } = await github.rest.repos.getContent({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      path: 'web/constants/app.ts',
-      ref: context.sha,
-    });
-
-    if (!fileData) {
-      throw new Error('content is undefined');
-    }
-
-    let sha = "";
-
-    const { data: { ref, object } } = await github.rest.git.getRef({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      ref: `heads/${BRANCH_NAME}`,
-    });
-
-    sha = object.sha;
-
-    if (ref) {
-      console.log(`Found branch ${BRANCH_NAME}`);
-    } else {
-      const { data: { object } } = await github.rest.git.createRef({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        ref: `refs/heads/${BRANCH_NAME}`,
-        sha: context.sha,
-      });
-
-      sha = object.sha;
-
-      console.log(`Created branch chore/update-assets`);
-    }
-
-    // TODO: FIX THIS
-    const newFileData = fileData.toString().replace(
-      /export const ASSETS_URL = '.*';/,
-      `export const ASSETS_URL = '${browser_download_url}';`
-    );
-
-    const { data: { content } } =  await github.rest.repos.createOrUpdateFileContents({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      path: 'web/constants/app.ts',
-      message: `chore: update assets url`,
-      content: Buffer.from(newFileData).toString('base64'),
-      sha: sha,
-      branch: BRANCH_NAME,
-    });
-
-    console.log(`Updated assets url in web/constants/app.ts`);
-
-    if (!content?.sha) {
-      throw new Error('sha is undefined');
-    }
-
-    await github.rest.git.updateRef({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      ref: `heads/${BRANCH_NAME}`,
-      sha: content?.sha,
-      force: true,
-    });
-
-    console.log(`Updated branch chore/update-assets`);
-
-    await github.rest.pulls.create({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      title: `chore: update assets url`,
-      head: BRANCH_NAME,
-      base: 'main',
-      body: `This PR updates the assets url in web/constants/app.ts to ${browser_download_url}`,
-    });
-
-    console.log(`Created PR chore/update-assets`);
   }
 }
