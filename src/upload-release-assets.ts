@@ -58,5 +58,31 @@ export async function uploadAssets(releaseId: number, assets: Artifact[]) {
     });
 
     console.log(`Uploaded ${assetName} to ${browser_download_url}`);
+
+    await github.rest.repos.createOrUpdateFileContents({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      path: 'web/constants/app.ts',
+      message: `chore(release): ${assetName}`,
+      content: Buffer.from(
+        fs.readFileSync('web/constants/app.ts', 'utf8')
+          .replace(new RegExp(`"${assetName}": ".*",`), `"${assetName}": "${browser_download_url}",`)
+      ).toString('base64'),
+      sha: context.sha,
+    });
+
+    console.log(`Updated ${assetName} in web/constants/app.ts`);
+
+    // create pull request
+    const { data: { number } } = await github.rest.pulls.create({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      title: `chore(release): ${assetName}`,
+      head: `release/${assetName}`,
+      base: 'main',
+      body: `chore(release): ${assetName}`,
+    });
+
+    console.log(`Created pull request #${number} for ${assetName}`)
   }
 }
