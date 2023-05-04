@@ -1,5 +1,8 @@
 name: 'kingmojang-app-action'
 description: 'Build tauri binaries for MacOS, Windows and Linux'
+branding:
+  icon: 'upload'
+  color: 'purple'
 author: 'Jung Hyeonsu <jung660317@naver.com>'
 inputs:
   releaseId:
