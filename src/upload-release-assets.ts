@@ -59,16 +59,31 @@ export async function uploadAssets(releaseId: number, assets: Artifact[]) {
 
     console.log(`Uploaded ${assetName} to ${browser_download_url}`);
 
+    const { data } = await github.rest.repos.getContent({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      path: 'web/constants/app.ts',
+      ref: context.sha,
+    });
+
     await github.rest.repos.createOrUpdateFileContents({
       owner: context.repo.owner,
       repo: context.repo.repo,
       path: 'web/constants/app.ts',
       message: `chore(release): ${assetName}`,
       content: Buffer.from(
-        fs.readFileSync('web/constants/app.ts', 'utf8')
-          .replace(new RegExp(`"${assetName}": ".*",`), `"${assetName}": "${browser_download_url}",`)
+        data.toString().replace(new RegExp(`"${assetName}": ".*",`), `"${assetName}": "${browser_download_url}",`)
       ).toString('base64'),
       sha: context.sha,
+      author: {
+        name: 'junghyeonsu',
+        email: 'jung660317@naver.com',
+      },
+      committer: {
+        name: 'junghyeonsu',
+        email: 'jung660317@naver.com',
+      },
+      branch: 'chore/update-assets',
     });
 
     console.log(`Updated ${assetName} in web/constants/app.ts`);
@@ -78,9 +93,10 @@ export async function uploadAssets(releaseId: number, assets: Artifact[]) {
       owner: context.repo.owner,
       repo: context.repo.repo,
       title: `chore(release): ${assetName}`,
-      head: `release/${assetName}`,
+      head: 'chore/update-assets',
       base: 'main',
       body: `chore(release): ${assetName}`,
+      maintainer_can_modify: true,
     });
 
     console.log(`Created pull request #${number} for ${assetName}`)
